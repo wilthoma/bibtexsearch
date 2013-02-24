@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>img/book_notebook.png</file>
+        <file>img/Notepad_32x32.png</file>
+        <file>img/Page.png</file>
+        <file>img/WarningHS.png</file>
+    </qresource>
+</RCC>
