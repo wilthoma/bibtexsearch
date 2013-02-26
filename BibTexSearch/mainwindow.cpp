@@ -11,6 +11,7 @@
 #include <QActionGroup>
 #include <QSettings>
 #include <QMessageBox>
+#include <boost/lexical_cast.hpp>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -64,7 +65,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(DetailBibitemAct,SIGNAL(triggered()), this, SLOT(detailTypeBibitem()) );
     connect(DetailBibtexAct,SIGNAL(triggered()), this, SLOT(detailTypeBibtex()) );
     connect(DetailTextAct,SIGNAL(triggered()), this, SLOT(detailTypeText()) );
-
+    connect(ui->txtDetail, SIGNAL(anchorClicked(QUrl)), this, SLOT(OnAnchorClicked(QUrl)));
 
     FillTree();
 
@@ -74,6 +75,12 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::OnAnchorClicked(const QUrl& url)
+{
+    qDebug() << url;
+
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -186,9 +193,9 @@ void MainWindow::refreshDetail()
                     appendEntryAttributeHtml(text, item->entry, "Note");
                     if (!item->entry.BibFile.empty())
                     {
-                        text.append("<tr><td><b>BibTeX file: </b></td><td>");
+                        text.append("<tr><td><b>BibTeX file: </b></td><td><a href=\"" + item->entry.BibFile + ":"+ boost::lexical_cast<std::string>(item->entry.lineNr) +"\">");
                         text.append(item->entry.BibFile);
-                        text.append("</td></tr>");
+                        text.append("</a></td></tr>");
                     }
                     text.append("<br>");
                     break;
