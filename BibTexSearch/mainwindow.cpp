@@ -77,10 +77,29 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+
+void MainWindow::doOpenExternally(const QString& bibfile, const int linenr )
+{
+    //QString cmd =
+    QProcess* p = new QProcess();
+    QString cmd = textEditorCmdLine;
+    cmd.replace(QString("%f"), "\"" + bibfile + "\"");
+    cmd.replace(QString("%l"), QString::number(linenr));
+    p->start(cmd);
+   // p.waitForStarted();
+    //p->start("calc.exe");
+    //p.waitForStarted();
+    statusBar()->showMessage("Running "+cmd+"...");
+}
+
 void MainWindow::OnAnchorClicked(const QUrl& url)
 {
     qDebug() << url;
-
+    QString s = url.url();
+    qDebug() << s;
+    QStringList lst = s.split('?');
+    doOpenExternally( lst[0], lst[1].toInt());
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -193,7 +212,7 @@ void MainWindow::refreshDetail()
                     appendEntryAttributeHtml(text, item->entry, "Note");
                     if (!item->entry.BibFile.empty())
                     {
-                        text.append("<tr><td><b>BibTeX file: </b></td><td><a href=\"" + item->entry.BibFile + ":"+ boost::lexical_cast<std::string>(item->entry.lineNr) +"\">");
+                        text.append("<tr><td><b>BibTeX file: </b></td><td><a href=\"" + item->entry.BibFile + "?"+ boost::lexical_cast<std::string>(item->entry.lineNr) +"\">");
                         text.append(item->entry.BibFile);
                         text.append("</a></td></tr>");
                     }
@@ -281,16 +300,7 @@ void MainWindow::openExternally()
     }
     else
     {
-        //QString cmd =
-        QProcess* p = new QProcess();
-        QString cmd = textEditorCmdLine;
-        cmd.replace(QString("%f"), "\"" + QString::fromUtf8( item->entry.BibFile.c_str()) + "\"");
-        cmd.replace(QString("%l"), QString::number(item->entry.lineNr));
-        p->start(cmd);
-       // p.waitForStarted();
-        //p->start("calc.exe");
-        //p.waitForStarted();
-        statusBar()->showMessage("Running "+cmd+"...");
+        doOpenExternally( QString::fromUtf8(item->entry.BibFile.c_str()), item->entry.lineNr );
     }
 }
 

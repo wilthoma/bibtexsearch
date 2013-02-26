@@ -58,6 +58,7 @@ private:
     void refreshDetail();
     void loadSettings();
     void saveSettings();
+    void doOpenExternally(const QString& bibfile, const int linenr );
 };
 
 
