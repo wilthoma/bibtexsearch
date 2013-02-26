@@ -45,6 +45,7 @@ public slots:
     void detailTypeText();
     void detailTypeBibtex();
     void detailTypeBibitem();
+    void OnAnchorClicked(const QUrl&);
 
 private:
     Ui::MainWindow *ui;
