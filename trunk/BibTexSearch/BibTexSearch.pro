@@ -31,6 +31,7 @@ FORMS    += mainwindow.ui \
     settingsdialog.ui
 
 INCLUDEPATH += F:/boost/include/boost-1_53
+INCLUDEPATH += /home/tw/boost/boost_1_53_0
 
 OTHER_FILES += \
     img/Page.png \
