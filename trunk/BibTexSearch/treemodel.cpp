@@ -350,19 +350,20 @@ bool parseFile(const QString& cFile, std::vector<bibentry>& lst)
     //typedef bibentry_parser<iterator_type> bibentry_parser;
     typedef keys_and_values<iterator_type> bibentry_parser;
     bibentry_parser g;
-    std::string::iterator iter = str.begin();
-    std::string::iterator end = str.end();
+    std::string::const_iterator iter = str.begin();
+    std::string::const_iterator begin = str.begin();
+    std::string::const_iterator end = str.end();
     while (iter != end)
     {
         rettype res;
         res.type = 0;
         res.BibFile = cFile.toUtf8().constData();
-        res.startpos = std::distance(str.begin(), iter);
+        res.startpos = std::distance(begin, iter);
         bool r = phrase_parse(iter, end, g, qi::space, res); // todo
 
             if (r )
             {
-                res.endpos = std::distance(str.begin(), iter);
+                res.endpos = std::distance(begin, iter);
                 res.lineNr = countLines(str, res.startpos);
                 res.FullText = str.substr(res.startpos, res.endpos-res.startpos-1);
                 res.SearchableText.append(res.entrykey);
