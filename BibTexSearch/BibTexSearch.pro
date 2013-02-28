@@ -36,7 +36,11 @@ OTHER_FILES += \
     img/Page.png \
     img/Notepad_32x32.png \
     img/book_notebook.png \
-    img/WarningHS.png
+    img/WarningHS.png \
+    img/bts.ico \
+    license.txt
 
 RESOURCES += \
     icons.qrc
+
+win32:RC_FILE += bts.rc

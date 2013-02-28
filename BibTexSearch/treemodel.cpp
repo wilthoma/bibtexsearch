@@ -50,6 +50,7 @@
 #include "treeitem.h"
 #include "treemodel.h"
 #include "bibentry.h"
+#include "mainwindow.h"
 
 #include <boost/config/warning_disable.hpp>
 #include <boost/spirit/include/qi.hpp>
@@ -442,6 +443,9 @@ void TreeModel::setupModelData(const QStringList &bibFiles, TreeItem *parent)
 
     for( QStringList::ConstIterator entry=bibFiles.begin(); entry!=bibFiles.end(); ++entry )
     {
+        if (MainWindow::cancelScanFlag)
+            return;
+
         //std::cout << *entry << std::endl;
         QString bibname = *entry;
         if(bibname != tr(".") && bibname != tr(".."))

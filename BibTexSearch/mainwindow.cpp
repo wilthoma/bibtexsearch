@@ -11,6 +11,9 @@
 #include <QActionGroup>
 #include <QSettings>
 #include <QMessageBox>
+#include <QPushButton>
+#include <QFrame>
+#include <QLabel>
 #include <boost/lexical_cast.hpp>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -21,11 +24,13 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     //ui->txtFolder->setText("C:\\Users\\alw\\Documents\\Thomas2\\wiltex\\carlo");
-    ui->txtFolder->setText("C:\\Users\\alw\\Documents\\Thomas2\\wiltex\\grgrt");
+    //ui->txtFolder->setText("C:\\Users\\alw\\Documents\\Thomas2\\wiltex\\grgrt");
     //ui->txtFolder->setText("C:\\Users\\alw\\Documents\\Thomas2\\wiltex");
+
 
     CopyEntryAct = new QAction(tr("&Copy entry"), this);
     CopyEntryAct->setShortcuts(QKeySequence::Copy);
+    CopyEntryAct->setShortcutContext(Qt::WidgetShortcut);
     CopyEntryAct->setStatusTip(tr("Copies this entry to clipboard"));
     QFont f;
     f.setBold(true);
@@ -33,8 +38,14 @@ MainWindow::MainWindow(QWidget *parent) :
 
     OpenExternallyAct = new QAction(tr("&Open in editor"), this);
     OpenExternallyAct->setShortcuts(QKeySequence::Open);
+    OpenExternallyAct->setShortcutContext(Qt::WidgetShortcut);
+
     OpenExternallyAct->setStatusTip(tr("Opens the .bib file in an editor you can configure"));
     //CopyEntryAct->set
+
+    // add actions so that shortcuts work
+    ui->trvFiles->addAction(OpenExternallyAct);
+    ui->trvFiles->addAction(CopyEntryAct);
 
     SettingsAct = new QAction(tr("&Settings"), this);
 
@@ -50,6 +61,25 @@ MainWindow::MainWindow(QWidget *parent) :
     DetailTextAct->setCheckable(true);
     DetailTextAct->setActionGroup(DetailActGroup);
     DetailTextAct->setChecked(true);
+    ExpandAllAct = new QAction(tr("Expand all"), this);
+    CollapseAllAct = new QAction(tr("Collapse all"), this);
+
+  /*  QFrame *frame = new QFrame(this);
+    QVBoxLayout *lout = new QVBoxLayout(frame);
+    QLabel *lbl = new QLabel(frame);
+    lbl->setText("Scanning directory...");
+    //frame->setBackgroundRole(QPalette::Window);
+    frame->setLayout(lout);
+    QPushButton *butt = new QPushButton(this);
+    frame->layout()->spacerItem();
+    frame->layout()->addWidget(lbl);
+    frame->layout()->addWidget(butt);
+    frame->layout()->spacerItem();
+
+    butt->setText("Cancel............");
+    //ui->centralWidget->layout()->addWidget(butt);
+    frame->setGeometry(geometry());*/
+
 
     //SettingsAct->setShortcuts(QKeySequence::Copy);
     //CopyEntryAct->setStatusTip(tr("Copies this entry to clipboard"));
@@ -63,13 +93,17 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(OpenExternallyAct,SIGNAL(triggered()), this, SLOT(openExternally()) );
     connect(ui->txtFilter, SIGNAL(textChanged(QString)), this, SLOT(OnFilterChanged(QString)));
     connect(DetailBibitemAct,SIGNAL(triggered()), this, SLOT(detailTypeBibitem()) );
-    connect(DetailBibtexAct,SIGNAL(triggered()), this, SLOT(detailTypeBibtex()) );
-    connect(DetailTextAct,SIGNAL(triggered()), this, SLOT(detailTypeText()) );
+    connect(DetailBibtexAct, SIGNAL(triggered()), this, SLOT(detailTypeBibtex()) );
+    connect(DetailTextAct, SIGNAL(triggered()), this, SLOT(detailTypeText()) );
     connect(ui->txtDetail, SIGNAL(anchorClicked(QUrl)), this, SLOT(OnAnchorClicked(QUrl)));
-
-    FillTree();
+   // connect(butt, SIGNAL(clicked()), this, SLOT(cancelScan()));
+    connect(ExpandAllAct, SIGNAL(triggered()), this, SLOT(expandAll()) );
+    connect(CollapseAllAct, SIGNAL(triggered()), this, SLOT(collapseAll()) );
 
     loadSettings();
+
+    QDir dir;
+    setFolder(dir.absolutePath());
 }
 
 MainWindow::~MainWindow()
@@ -77,7 +111,34 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+bool programmaticChange = false; // workaround
+void MainWindow::setFolder(const QString& folder)
+{
+    if (folder.isNull() || folder.isEmpty())
+        return;
 
+    if (folder != currentFolder)
+    {
+        programmaticChange = true;
+        currentFolder = folder;
+
+        int ind = ui->cmbFolder->findText(folder);
+        if (ind >= 0)
+        {
+            ui->cmbFolder->removeItem(ind);
+        }
+        ui->cmbFolder->insertItem(0, folder);
+        ui->cmbFolder->setCurrentIndex(0);
+        if (ui->cmbFolder->count()>10)
+            ui->cmbFolder->removeItem(ui->cmbFolder->count()-1);
+
+        programmaticChange = false;
+
+        FillTree();
+
+
+    }
+}
 
 void MainWindow::doOpenExternally(const QString& bibfile, const int linenr )
 {
@@ -90,7 +151,7 @@ void MainWindow::doOpenExternally(const QString& bibfile, const int linenr )
    // p.waitForStarted();
     //p->start("calc.exe");
     //p.waitForStarted();
-    statusBar()->showMessage("Running "+cmd+"...");
+    statusBar()->showMessage("Running "+cmd+"...", 10000);
 }
 
 void MainWindow::OnAnchorClicked(const QUrl& url)
@@ -104,19 +165,43 @@ void MainWindow::OnAnchorClicked(const QUrl& url)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    cancelScanFlag = true;
     saveSettings();
     qDebug() << "closeevent";
+}
+void MainWindow::expandAll()
+{
+    ui->trvFiles->expandAll();
+}
+
+void MainWindow::collapseAll()
+{
+    ui->trvFiles->collapseAll();
 }
 
 void MainWindow::OnChooseFile()
 {
-    QString s = QFileDialog::getExistingDirectory(this, "Choose Directory", ui->txtFolder->text());
-    if (!s.isEmpty() && !s.isNull())
+    // Either cancel or choose folder
+    if (ui->cmdChooseFolder->text() == tr("..."))
     {
-        ui->txtFolder->setText( s );
-        FillTree();
+        QString s = QFileDialog::getExistingDirectory(this, "Choose Directory", ui->cmbFolder->currentText());
+        if (!s.isEmpty() && !s.isNull())
+        {
+            //ui->txtFolder->setText( s );
+
+            setFolder(s);
+        }
+    }
+    else
+    {
+        cancelScanFlag = true;
     }
     //return 0;
+}
+
+void MainWindow::cancelScan()
+{
+    cancelScanFlag=true;
 }
 
 void MainWindow::OnFilterChanged(const QString& txt)
@@ -152,6 +237,12 @@ void MainWindow::loadSettings()
     ui->trvFiles->setColumnWidth(1,s.value("Column1Width", 400).toInt());
     textEditorCmdLine = s.value("ExternalEditor", "").toString();
     BibitemFormat = s.value("BibitemFormat", "\\bibitem %author, %title, \\emph{%journal} %volume, %number, %year, %note").toString();
+
+    QStringList sl;
+    sl = s.value("RecentFolders").toStringList();
+    programmaticChange = true;
+    ui->cmbFolder->addItems(sl);
+    programmaticChange = false;
 }
 
 void MainWindow::saveSettings()
@@ -163,6 +254,11 @@ void MainWindow::saveSettings()
     s.setValue("Column1Width", ui->trvFiles->columnWidth(1));
     s.setValue("ExternalEditor", textEditorCmdLine);
     s.setValue("BibitemFormat", BibitemFormat);
+
+    QStringList sl;
+    for (int i=0;i<ui->cmbFolder->count();i++)
+        sl.append(ui->cmbFolder->itemText(i));
+    s.setValue("RecentFolders", sl);
 }
 
 inline void appendEntryAttributeHtml(std::string& text, const bibentry& b, const std::string& key )
@@ -335,11 +431,11 @@ void MainWindow::copyEntry()
         //QString originalText = clipboard->text();
         clipboard->setText(QString::fromUtf8(str.c_str()));
 
-        statusBar()->showMessage(QString::number( count) + tr(" entrie(s) copied to clipboard"));
+        statusBar()->showMessage(QString::number( count) + tr(" entrie(s) copied to clipboard"), 10000);
     }
     else
     {
-        statusBar()->showMessage("Nothing to copy to clipboard.");
+        statusBar()->showMessage("Nothing to copy to clipboard.", 10000);
     }
 
 }
@@ -350,6 +446,8 @@ void MainWindow::OnTrvContextMenuRequested(const QPoint & pos)
     menu.addAction(CopyEntryAct);
     menu.addAction(OpenExternallyAct);
     menu.addSeparator();
+    menu.addAction(ExpandAllAct);
+    menu.addAction(CollapseAllAct);
     QMenu *dmenu = menu.addMenu(tr("Detail View"));
     dmenu->addAction(DetailTextAct);
     dmenu->addAction(DetailBibtexAct);
@@ -361,9 +459,16 @@ void MainWindow::OnTrvContextMenuRequested(const QPoint & pos)
     menu.exec(ui->trvFiles->mapToGlobal(pos));
 }
 
+bool MainWindow::cancelScanFlag = false;
+
 // Recursively adds BibTex files
 void MainWindow::AppendAllBibFiles(QString folder, QStringList& lst)
 {
+    statusBar()->showMessage("Scanning "+folder +"...", 1000);
+    qApp->processEvents();
+    if (cancelScanFlag)
+        return;
+
     QDir dir(folder);
     QStringList lstBib = dir.entryList(QStringList("*.bib"));
     for( QStringList::ConstIterator entry=lstBib.begin(); entry!=lstBib.end(); ++entry )
@@ -393,8 +498,17 @@ void MainWindow::AppendAllBibFiles(QString folder, QStringList& lst)
 
 void MainWindow::FillTree()
 {
+    // don't want to change the dir while scanning
+    ui->cmdChooseFolder->setText(tr("Cancel Scan"));
+    ui->cmbFolder->setEnabled(false);
+
     QStringList bibFiles;
-    AppendAllBibFiles(ui->txtFolder->text(), bibFiles);
+    cancelScanFlag = false;
+
+    // remove current tree model
+    ui->trvFiles->setModel(0);
+
+    AppendAllBibFiles(currentFolder, bibFiles);
     //QFile file("default.txt");
     //file.open(QIODevice::ReadOnly);
     //TreeModel model(file.readAll());
@@ -402,14 +516,29 @@ void MainWindow::FillTree()
     //file.close();
 
     //QTreeView view;
-    model = new TreeModel(bibFiles);
-    theFilter = new MyTreeProxyFilter(this);
-    theFilter->setFilterCaseSensitivity(Qt::CaseInsensitive);
-    theFilter->setSourceModel(model);
-    //ui->trvFiles->setModel(model);
-    ui->trvFiles->setModel(theFilter);
-    //ui->trvFiles->setModel(tmodel);
-    //view.setWindowTitle(QObject::tr("Simple Tree Model"));
-    //view.show();
-    connect(ui->trvFiles->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this, SLOT(OnSelectionChanged(QItemSelection, QItemSelection)));
+    //if (!cancelScanFlag)
+    {
+        model = new TreeModel(bibFiles);
+        theFilter = new MyTreeProxyFilter(this);
+        theFilter->setFilterCaseSensitivity(Qt::CaseInsensitive);
+        theFilter->setSourceModel(model);
+        //ui->trvFiles->setModel(model);
+        ui->trvFiles->setModel(theFilter);
+        //ui->trvFiles->setModel(tmodel);
+        //view.setWindowTitle(QObject::tr("Simple Tree Model"));
+        //view.show();
+        connect(ui->trvFiles->selectionModel(), SIGNAL(selectionChanged(QItemSelection,QItemSelection)), this, SLOT(OnSelectionChanged(QItemSelection, QItemSelection)));
+    }
+
+    //ui->cmdChooseFolder->setEnabled(true);
+    ui->cmdChooseFolder->setText(tr("..."));
+    ui->cmbFolder->setEnabled(true);
+}
+
+
+void MainWindow::on_cmbFolder_currentTextChanged(const QString &arg1)
+{
+    //qDebug() << "Textchanged "+arg1;
+    if (!programmaticChange)
+        setFolder(arg1);
 }

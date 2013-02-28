@@ -26,11 +26,14 @@ public:
     QAction *DetailBibtexAct;
     QAction *DetailBibitemAct;
     QActionGroup *DetailActGroup;
+    QAction *ExpandAllAct;
+    QAction *CollapseAllAct;
     
     void closeEvent(QCloseEvent *event);
 
     static QString textEditorCmdLine;
     static QString BibitemFormat;
+    static bool cancelScanFlag;
 
 public slots:
     void OnChooseFile();
@@ -46,6 +49,13 @@ public slots:
     void detailTypeBibtex();
     void detailTypeBibitem();
     void OnAnchorClicked(const QUrl&);
+    void cancelScan();
+    void expandAll();
+    void collapseAll();
+
+private slots:
+
+    void on_cmbFolder_currentTextChanged(const QString &arg1);
 
 private:
     Ui::MainWindow *ui;
@@ -54,6 +64,9 @@ private:
     TreeModel* model;
     MyTreeProxyFilter *theFilter;
     DetailViewType detailViewType;
+    void setFolder(const QString& folder);
+
+    QString currentFolder;
 
     void refreshDetail();
     void loadSettings();

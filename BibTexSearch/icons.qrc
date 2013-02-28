@@ -4,5 +4,6 @@
         <file>img/Notepad_32x32.png</file>
         <file>img/Page.png</file>
         <file>img/WarningHS.png</file>
+        <file>img/bts.ico</file>
     </qresource>
 </RCC>
