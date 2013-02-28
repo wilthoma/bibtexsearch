@@ -358,9 +358,9 @@ bool parseFile(const QString& cFile, std::vector<bibentry>& lst)
         res.type = 0;
         res.BibFile = cFile.toUtf8().constData();
         res.startpos = std::distance(str.begin(), iter);
-        bool r = phrase_parse(iter, end, g, qi::space, res); todo
+        bool r = phrase_parse(iter, end, g, qi::space, res); // todo
 
-            if (r )//&& iter == end)
+            if (r )
             {
                 res.endpos = std::distance(str.begin(), iter);
                 res.lineNr = countLines(str, res.startpos);
