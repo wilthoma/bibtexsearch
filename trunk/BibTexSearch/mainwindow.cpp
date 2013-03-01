@@ -237,6 +237,19 @@ void MainWindow::loadSettings()
     ui->trvFiles->setColumnWidth(1,s.value("Column1Width", 400).toInt());
     textEditorCmdLine = s.value("ExternalEditor", "").toString();
     BibitemFormat = s.value("BibitemFormat", "\\bibitem %author, %title, \\emph{%journal} %volume, %number, %year, %note").toString();
+    detailViewType = (DetailViewType) (s.value("DetailViewType", 0).toInt());
+    switch (detailViewType)
+    {
+    case DT_BIBITEM:
+        DetailBibitemAct->setChecked(true);
+        break;
+    case DT_TEXT:
+        DetailTextAct->setChecked(true);
+        break;
+    case DT_BIBTEX:
+        DetailBibtexAct->setChecked(true);
+        break;
+    }
 
     QStringList sl;
     sl = s.value("RecentFolders").toStringList();
@@ -254,6 +267,7 @@ void MainWindow::saveSettings()
     s.setValue("Column1Width", ui->trvFiles->columnWidth(1));
     s.setValue("ExternalEditor", textEditorCmdLine);
     s.setValue("BibitemFormat", BibitemFormat);
+    s.setValue("DetailViewType", (int)detailViewType);
 
     QStringList sl;
     for (int i=0;i<ui->cmbFolder->count();i++)
@@ -462,7 +476,7 @@ void MainWindow::OnTrvContextMenuRequested(const QPoint & pos)
 bool MainWindow::cancelScanFlag = false;
 
 // Recursively adds BibTex files
-void MainWindow::AppendAllBibFiles(QString folder, QStringList& lst)
+void MainWindow::AppendAllBibFiles(QString folder, QStringList& lstBibfiles,  QStringList &lstTexfiles)
 {
     statusBar()->showMessage("Scanning "+folder +"...", 1000);
     qApp->processEvents();
@@ -477,7 +491,17 @@ void MainWindow::AppendAllBibFiles(QString folder, QStringList& lst)
         QString bibname = *entry;
         if(bibname != tr(".") && bibname != tr(".."))
         {
-            lst.append(dir.absoluteFilePath(bibname));
+            lstBibfiles.append(dir.absoluteFilePath(bibname));
+        }
+    }
+    QStringList lstTex = dir.entryList(QStringList("*.tex"));
+    for( QStringList::ConstIterator entry=lstTex.begin(); entry!=lstTex.end(); ++entry )
+    {
+        //std::cout << *entry << std::endl;
+        QString texname = *entry;
+        if(texname != tr(".") && texname != tr(".."))
+        {
+            lstTexfiles.append(dir.absoluteFilePath(texname));
         }
     }
 
@@ -490,7 +514,7 @@ void MainWindow::AppendAllBibFiles(QString folder, QStringList& lst)
         QString dirname = *entry;
         if(dirname != tr(".") && dirname != tr(".."))
         {
-            AppendAllBibFiles(dir2.absoluteFilePath(dirname), lst);
+            AppendAllBibFiles(dir2.absoluteFilePath(dirname), lstBibfiles, lstTexfiles);
             //qDebug() <<  dirname;
         }
     }
@@ -502,13 +526,13 @@ void MainWindow::FillTree()
     ui->cmdChooseFolder->setText(tr("Cancel Scan"));
     ui->cmbFolder->setEnabled(false);
 
-    QStringList bibFiles;
+    QStringList bibFiles, texFiles;
     cancelScanFlag = false;
 
     // remove current tree model
     ui->trvFiles->setModel(0);
 
-    AppendAllBibFiles(currentFolder, bibFiles);
+    AppendAllBibFiles(currentFolder, bibFiles, texFiles);
     //QFile file("default.txt");
     //file.open(QIODevice::ReadOnly);
     //TreeModel model(file.readAll());
@@ -518,7 +542,7 @@ void MainWindow::FillTree()
     //QTreeView view;
     //if (!cancelScanFlag)
     {
-        model = new TreeModel(bibFiles);
+        model = new TreeModel(bibFiles, texFiles);
         theFilter = new MyTreeProxyFilter(this);
         theFilter->setFilterCaseSensitivity(Qt::CaseInsensitive);
         theFilter->setSourceModel(model);

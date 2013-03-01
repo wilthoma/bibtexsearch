@@ -60,7 +60,7 @@ private slots:
 private:
     Ui::MainWindow *ui;
     void FillTree();
-    void AppendAllBibFiles(QString , QStringList& );
+    void AppendAllBibFiles(QString , QStringList&,  QStringList&);
     TreeModel* model;
     MyTreeProxyFilter *theFilter;
     DetailViewType detailViewType;

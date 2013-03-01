@@ -91,7 +91,7 @@ typedef std::map<std::string, std::string> kvpairs;
 bibentry fileentry;
 bibentry errorentry;
 
-TreeModel::TreeModel(const QStringList &bibFiles, QObject *parent )
+TreeModel::TreeModel(const QStringList &bibFiles, const QStringList &texFiles, QObject *parent )
     : QAbstractItemModel(parent)
 {
     fileentry.type = 1;
@@ -99,7 +99,7 @@ TreeModel::TreeModel(const QStringList &bibFiles, QObject *parent )
     QList<QVariant> rootData;
     rootData << "Title" << "Authors";
     rootItem = new TreeItem(rootData, fileentry);
-    setupModelData(bibFiles, rootItem);
+    setupModelData(bibFiles, texFiles, rootItem);
 }
 
 TreeModel::~TreeModel()
@@ -135,6 +135,8 @@ QVariant TreeModel::data(const QModelIndex &index, int role) const
                 return QPixmap(":/icons/img/book_notebook.png");
             case 2:
                 return QPixmap(":/icons/img/WarningHS.png");
+            case 3:
+                return QPixmap(":/icons/img/book_notebook_tex.png");
             }
         }
     }
@@ -393,6 +395,49 @@ bool parseFile(const QString& cFile, std::vector<bibentry>& lst)
     return true;
 }
 
+bool parseTexFile(const QString& cFile, std::vector<bibentry>& lst)
+{
+    // Extract the bibliography
+    //qDebug() << "Parsing "+cFile;
+    std::string cFile2 = cFile.toUtf8().constData();
+    QString str, thebibonly;
+    QFile inputFile(cFile);
+    if (inputFile.open(QIODevice::ReadOnly))
+    {
+       QTextStream in(&inputFile);
+       str = in.readAll();
+    }
+    inputFile.close();
+
+    QStringList l = str.split("\\begin{thebibliography}");//str.split(QRegularExpression("\\begin{thebibliography}"));//str.split(QRegularExpression("\\begin\\w*\\{\\w*thebibliography\\w*\\}"));
+    //qDebug() << "Found " << l.count();
+    if (l.count() > 1)
+    {
+
+        QStringList l2 = l[1].split("\\end{thebibliography}"); //split(QRegularExpression("\\end\\w*\\{\\w*thebibliography\\w*\\}"));
+        //qDebug() << "Found "<< l2.count();
+        if (l2.count() > 1)
+        {
+            thebibonly = l2[0];
+
+            QStringList l3 = thebibonly.split("\\bibitem");
+            for (int i=1;i<l3.count();i++)
+            {
+                QString s = l3[i].trimmed();
+                bibentry b;
+                b.type = 0;
+                b.BibFile = cFile2;
+                b.FullText = ("\\bibitem"+s).toUtf8().constData();
+                b.attribus["title"] = s.toUtf8().constData();
+                lst.push_back(b);
+            }
+            //qDebug() << "Found "<< l3.count();
+            return true;
+        }
+    }
+
+    return false;
+}
 
 
 // trim from start
@@ -439,7 +484,8 @@ QString getBibKey( rettype & bi, const QString key )
     return "";
 }
 
-void TreeModel::setupModelData(const QStringList &bibFiles, TreeItem *parent)
+
+void TreeModel::setupModelData(const QStringList &bibFiles, const QStringList &texFiles, TreeItem *parent)
 {
 
     for( QStringList::ConstIterator entry=bibFiles.begin(); entry!=bibFiles.end(); ++entry )
@@ -480,50 +526,40 @@ void TreeModel::setupModelData(const QStringList &bibFiles, TreeItem *parent)
 
         }
     }
-   /* QList<TreeItem*> parents;
-    QList<int> indentations;
-    parents << parent;
-    indentations << 0;
 
-    int number = 0;
+    for( QStringList::ConstIterator entry=texFiles.begin(); entry!=texFiles.end(); ++entry )
+    {
+        if (MainWindow::cancelScanFlag)
+            return;
 
-    while (number < lines.count()) {
-        int position = 0;
-        while (position < lines[number].length()) {
-            if (lines[number].mid(position, 1) != " ")
-                break;
-            position++;
-        }
+        //std::cout << *entry << std::endl;
+        QString texname = *entry;
+        if(texname != tr(".") && texname != tr(".."))
+        {
+            QList<QVariant> ColumnData;
+            QFileInfo finfo(texname);
+            ColumnData << finfo.fileName() << "";// finfo.absolutePath();
+            bibentry fentry = fileentry;
+            fentry.type = 3;
+            fentry.BibFile = texname.toUtf8().constData();
+            TreeItem* bibTreeItem = new TreeItem(ColumnData, fentry, parent);
 
-        QString lineData = lines[number].mid(position).trimmed();
 
-        if (!lineData.isEmpty()) {
-            // Read the column data from the rest of the line.
-            QStringList columnStrings = lineData.split("\t", QString::SkipEmptyParts);
-            QList<QVariant> columnData;
-            for (int column = 0; column < columnStrings.count(); ++column)
-                columnData << columnStrings[column];
-
-            if (position > indentations.last()) {
-                // The last child of the current parent is now the new parent
-                // unless the current parent has no children.
-
-                if (parents.last()->childCount() > 0) {
-                    parents << parents.last()->child(parents.last()->childCount()-1);
-                    indentations << position;
+            std::vector<bibentry> lst;
+            if (parseTexFile(texname, lst) && lst.size() > 0)
+            {
+                parent->appendChild(bibTreeItem);
+                for (std::vector<bibentry>::const_iterator it = lst.begin(); it != lst.end(); ++it)
+                {
+                    bibentry bib = *it;
+                    QList<QVariant> chColumnData;
+                    chColumnData << getBibKey(bib, "title") << getBibKey(bib, "author");
+                    bibTreeItem->appendChild(new TreeItem(chColumnData, bib, bibTreeItem));
                 }
-            } else {
-                while (position < indentations.last() && parents.count() > 0) {
-                    parents.pop_back();
-                    indentations.pop_back();
-                }
+
             }
 
-            // Append a new item to the current parent's list of children.
-            parents.last()->appendChild(new TreeItem(columnData, parents.last()));
         }
-
-        number++;
     }
-    */
+
 }
