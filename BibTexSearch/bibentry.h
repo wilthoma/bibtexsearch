@@ -15,7 +15,7 @@ public:
     std::string FullText;
     std::string SearchableText;
     int startpos, endpos, lineNr;
-    int type; //0=entry, 1=bibfile, 2=error
+    int type; //0=entry, 1=bibfile, 2=error, 3=texfile
 
 public:
     bibentry();
