@@ -36,6 +36,12 @@ MainWindow::MainWindow(QWidget *parent) :
     f.setBold(true);
     CopyEntryAct->setFont(f);
 
+    CopyEntryKeyAct = new QAction(tr("&Copy key"), this);
+    QKeySequence ks = QKeySequence::fromString("CTRL+D");
+    CopyEntryKeyAct->setShortcut(ks);
+    CopyEntryKeyAct->setShortcutContext(Qt::WidgetShortcut);
+    CopyEntryKeyAct->setStatusTip(tr("Copies this entry's key to clipboard"));
+
     OpenExternallyAct = new QAction(tr("&Open in editor"), this);
     OpenExternallyAct->setShortcuts(QKeySequence::Open);
     OpenExternallyAct->setShortcutContext(Qt::WidgetShortcut);
@@ -46,6 +52,8 @@ MainWindow::MainWindow(QWidget *parent) :
     // add actions so that shortcuts work
     ui->trvFiles->addAction(OpenExternallyAct);
     ui->trvFiles->addAction(CopyEntryAct);
+    ui->trvFiles->addAction(CopyEntryKeyAct);
+
 
     SettingsAct = new QAction(tr("&Settings"), this);
 
@@ -89,6 +97,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->trvFiles, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(OnTrvDblClick(QModelIndex)));
     connect(ui->trvFiles, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(OnTrvContextMenuRequested(QPoint)));
     connect(CopyEntryAct,SIGNAL(triggered()), this, SLOT(copyEntry()) );
+    connect(CopyEntryKeyAct,SIGNAL(triggered()), this, SLOT(copyEntryKey()) );
     connect(SettingsAct,SIGNAL(triggered()), this, SLOT(showSettings()) );
     connect(OpenExternallyAct,SIGNAL(triggered()), this, SLOT(openExternally()) );
     connect(ui->txtFilter, SIGNAL(textChanged(QString)), this, SLOT(OnFilterChanged(QString)));
@@ -251,6 +260,8 @@ void MainWindow::loadSettings()
         break;
     }
 
+    scanTexFiles = s.value("ScanTexFiles", true).toBool();
+
     QStringList sl;
     sl = s.value("RecentFolders").toStringList();
     programmaticChange = true;
@@ -268,6 +279,7 @@ void MainWindow::saveSettings()
     s.setValue("ExternalEditor", textEditorCmdLine);
     s.setValue("BibitemFormat", BibitemFormat);
     s.setValue("DetailViewType", (int)detailViewType);
+    s.setValue("ScanTexFiles", scanTexFiles);
 
     QStringList sl;
     for (int i=0;i<ui->cmbFolder->count();i++)
@@ -275,9 +287,9 @@ void MainWindow::saveSettings()
     s.setValue("RecentFolders", sl);
 }
 
-inline void appendEntryAttributeHtml(std::string& text, const bibentry& b, const std::string& key )
+inline void appendEntryAttributeHtml(std::string& text, const std::string& val, const std::string& key )
 {
-    std::string val = b.getAttribute(key);
+    //std::string val = b.getAttribute(key);
     if (!val.empty())
     {
         text.append("<tr><td><b>");
@@ -286,6 +298,12 @@ inline void appendEntryAttributeHtml(std::string& text, const bibentry& b, const
         text.append(val);
         text.append("</td></tr>");
     }
+}
+
+inline void appendEntryAttributeHtml(std::string& text, const bibentry& b, const std::string& key )
+{
+    std::string val = b.getAttribute(key);
+    appendEntryAttributeHtml(text, val, key);
 }
 
 void MainWindow::refreshDetail()
@@ -320,6 +338,7 @@ void MainWindow::refreshDetail()
                     appendEntryAttributeHtml(text, item->entry, "Number");
                     appendEntryAttributeHtml(text, item->entry, "Year");
                     appendEntryAttributeHtml(text, item->entry, "Note");
+                    appendEntryAttributeHtml(text, item->entry.entrykey, "Key");
                     if (!item->entry.BibFile.empty())
                     {
                         text.append("<tr><td><b>BibTeX file: </b></td><td><a href=\"" + item->entry.BibFile + "?"+ boost::lexical_cast<std::string>(item->entry.lineNr) +"\">");
@@ -362,6 +381,7 @@ void MainWindow::refreshDetail()
 
 QString MainWindow::BibitemFormat;
 QString MainWindow::textEditorCmdLine;
+bool MainWindow::scanTexFiles;
 
 void MainWindow::showSettings()
 {
@@ -414,6 +434,50 @@ void MainWindow::openExternally()
     }
 }
 
+void MainWindow::copyEntryKey()
+{
+    //qDebug() << "Hallo Welt";
+    //std::string str;
+    QModelIndexList lst = ui->trvFiles->selectionModel()->selectedIndexes();
+    QStringList res;
+    ///std::cout << "+++";
+    int count=0;
+    foreach (QModelIndex ind, lst)
+    {
+    //QModelIndex ind = ui->trvFiles->selectionModel()->currentIndex()
+        if (ind.column() ==0)
+        {
+            QModelIndex sind = theFilter->mapToSource(ind);
+             //qDebug() << "**";
+            TreeItem *item = static_cast<TreeItem*>(sind.internalPointer());
+            if (item && item->entry.type==0)
+            {
+                count++;
+                //qDebug() << QString::fromUtf8(item->entry.entrykey.c_str());
+                res.append(QString::fromUtf8(item->entry.entrykey.c_str()));
+                //str.append(item->entry.entrykey);
+                //str.append("\r\n"); //TODO/**/
+            }
+        }
+    }
+
+    QString str = res.join(", ");
+
+    if (!str.isEmpty())
+    {
+        QClipboard *clipboard = QApplication::clipboard();
+        //QString originalText = clipboard->text();
+        clipboard->setText(str);
+
+        statusBar()->showMessage(QString::number( count) + tr(" entry key(s) copied to clipboard"), 10000);
+    }
+    else
+    {
+        statusBar()->showMessage("Nothing to copy to clipboard.", 10000);
+    }
+
+}
+
 void MainWindow::copyEntry()
 {
     //qDebug() << "Hallo Welt";
@@ -458,6 +522,7 @@ void MainWindow::OnTrvContextMenuRequested(const QPoint & pos)
 {
     QMenu menu(this);
     menu.addAction(CopyEntryAct);
+    menu.addAction(CopyEntryKeyAct);
     menu.addAction(OpenExternallyAct);
     menu.addSeparator();
     menu.addAction(ExpandAllAct);
@@ -494,14 +559,18 @@ void MainWindow::AppendAllBibFiles(QString folder, QStringList& lstBibfiles,  QS
             lstBibfiles.append(dir.absoluteFilePath(bibname));
         }
     }
-    QStringList lstTex = dir.entryList(QStringList("*.tex"));
-    for( QStringList::ConstIterator entry=lstTex.begin(); entry!=lstTex.end(); ++entry )
+
+    if (scanTexFiles)
     {
-        //std::cout << *entry << std::endl;
-        QString texname = *entry;
-        if(texname != tr(".") && texname != tr(".."))
+        QStringList lstTex = dir.entryList(QStringList("*.tex"));
+        for( QStringList::ConstIterator entry=lstTex.begin(); entry!=lstTex.end(); ++entry )
         {
-            lstTexfiles.append(dir.absoluteFilePath(texname));
+            //std::cout << *entry << std::endl;
+            QString texname = *entry;
+            if(texname != tr(".") && texname != tr(".."))
+            {
+                lstTexfiles.append(dir.absoluteFilePath(texname));
+            }
         }
     }
 
@@ -531,6 +600,7 @@ void MainWindow::FillTree()
 
     // remove current tree model
     ui->trvFiles->setModel(0);
+    ui->txtDetail->setText("");
 
     AppendAllBibFiles(currentFolder, bibFiles, texFiles);
     //QFile file("default.txt");

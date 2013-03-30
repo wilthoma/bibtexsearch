@@ -11,6 +11,7 @@ SettingsDialog::SettingsDialog(QWidget *parent) :
 
     ui->txtExternalEditor->setText( MainWindow::textEditorCmdLine);
     ui->txtBibItemFormat->setPlainText(MainWindow::BibitemFormat);
+    ui->chkScanTexFiles->setChecked(MainWindow::scanTexFiles);
 
     connect(this, SIGNAL(accepted()), SLOT(OnAccept()));
 
@@ -25,6 +26,7 @@ void SettingsDialog::OnAccept()
 {
     MainWindow::textEditorCmdLine = ui->txtExternalEditor->text();
     MainWindow::BibitemFormat = ui->txtBibItemFormat->toPlainText();
+    MainWindow::scanTexFiles = ui->chkScanTexFiles->isChecked();
 }
 
 void SettingsDialog::closeEvent(QCloseEvent *event)

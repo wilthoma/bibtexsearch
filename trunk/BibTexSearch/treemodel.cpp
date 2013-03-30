@@ -409,12 +409,13 @@ bool parseTexFile(const QString& cFile, std::vector<bibentry>& lst)
     }
     inputFile.close();
 
-    QStringList l = str.split("\\begin{thebibliography}");//str.split(QRegularExpression("\\begin{thebibliography}"));//str.split(QRegularExpression("\\begin\\w*\\{\\w*thebibliography\\w*\\}"));
+    QStringList l = str.split(QRegularExpression("\\\\begin\\w*{\\w*thebibliography\\w*}"));
+            //str.split("\\begin{thebibliography}");//str.split(QRegularExpression("\\begin{thebibliography}"));//str.split(QRegularExpression("\\begin\\w*\\{\\w*thebibliography\\w*\\}"));
     //qDebug() << "Found " << l.count();
     if (l.count() > 1)
     {
 
-        QStringList l2 = l[1].split("\\end{thebibliography}"); //split(QRegularExpression("\\end\\w*\\{\\w*thebibliography\\w*\\}"));
+        QStringList l2 = l[1].split(QRegularExpression("\\\\end\\w*{\\w*thebibliography\\w*}"));
         //qDebug() << "Found "<< l2.count();
         if (l2.count() > 1)
         {
