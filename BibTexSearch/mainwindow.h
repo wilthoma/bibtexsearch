@@ -20,6 +20,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     QAction *CopyEntryAct;
+    QAction *CopyEntryKeyAct;
     QAction *OpenExternallyAct;
     QAction *SettingsAct;
     QAction *DetailTextAct;
@@ -31,9 +32,13 @@ public:
     
     void closeEvent(QCloseEvent *event);
 
+    // global Settings
     static QString textEditorCmdLine;
     static QString BibitemFormat;
+    static bool scanTexFiles;
+
     static bool cancelScanFlag;
+
 
 public slots:
     void OnChooseFile();
@@ -41,6 +46,7 @@ public slots:
     void OnTrvDblClick(const QModelIndex & index);
     void OnTrvContextMenuRequested(const QPoint& );
     void copyEntry();
+    void copyEntryKey();
     void showSettings();
     void openExternally();
     void OnFilterChanged(const QString&);
